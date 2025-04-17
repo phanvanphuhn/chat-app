@@ -4,6 +4,12 @@ const http = require("http");
 const socketio = require("socket.io");
 const Filter = require("bad-words");
 const { generateMessage, generateLocationMessage } = require("./utils/message");
+const {
+  addUser,
+  removeUser,
+  getUser,
+  getUsersInRoom,
+} = require("./utils/users");
 
 const app = express();
 const server = http.createServer(app);
@@ -16,23 +22,33 @@ app.use(express.static(publicDirectoryPath));
 
 io.on("connection", (socket) => {
   console.log("New WebSocket connection");
-  socket.emit("message", generateMessage("Welcome to the chat app"));
-  socket.broadcast.emit(
-    "message",
-    generateMessage("A new user has joined the chat")
-  );
+
+  socket.on("join", ({ username, room }, callback) => {
+    const { error, user } = addUser({ id: socket.id, username, room });
+    if (error) {
+      return callback(error);
+    }
+    socket.join(user.room);
+    socket.emit("message", generateMessage("Welcome to the chat app"));
+    socket.broadcast
+      .to(user.room)
+      .emit("message", generateMessage(`${user.username} has joined the chat`));
+    callback();
+  });
 
   socket.on("sendMessage", (message, callback) => {
+    const user = getUser(socket.id);
     const filter = new Filter();
     if (filter.isProfane(message)) {
       return callback("Profanity is not allowed", undefined);
     }
-    io.emit("message", generateMessage(message));
+    io.to(user.room).emit("message", generateMessage(message, user.username));
     callback(undefined, message);
   });
 
   socket.on("sendLocation", (data, callback) => {
-    io.emit(
+    const user = getUser(socket.id);
+    io.to(user.room).emit(
       "locationMessage",
       generateLocationMessage(
         `https://google.com/maps?q=${data.latitude},${data.longitude}`
@@ -42,7 +58,17 @@ io.on("connection", (socket) => {
   });
 
   socket.on("disconnect", () => {
-    io.emit("message", generateMessage("A user has left the chat"));
+    const user = removeUser(socket.id);
+    if (user) {
+      io.to(user.room).emit(
+        "message",
+        generateMessage(`${user.username} has left the chat`)
+      );
+      io.to(user.room).emit("roomData", {
+        room: user.room,
+        users: getUsersInRoom(user.room),
+      });
+    }
   });
 });
 

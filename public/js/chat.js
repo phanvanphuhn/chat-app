@@ -22,6 +22,15 @@ socket.on("locationMessage", (message) => {
   messages.insertAdjacentHTML("beforeend", html);
 });
 
+const params = new URLSearchParams(location.search);
+const username = params.get("username");
+const room = params.get("room");
+
+if (!username || !room) {
+  alert("Please provide both username and room");
+  location.href = "/";
+}
+
 document.querySelector("#send").addEventListener("click", () => {
   socket.emit(
     "sendMessage",
@@ -60,4 +69,11 @@ document.querySelector("#send-location").addEventListener("click", () => {
   setTimeout(() => {
     document.querySelector("#send-location").disabled = false;
   }, 5000);
+});
+
+socket.emit("join", { username, room }, (error) => {
+  if (error) {
+    alert(error);
+    location.href = "/";
+  }
 });
