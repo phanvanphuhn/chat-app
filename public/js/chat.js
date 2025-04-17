@@ -3,8 +3,9 @@ const socket = io();
 const messages = document.querySelector("#messages");
 const messageTemplate = document.querySelector("#message-template").innerHTML;
 const locationTemplate = document.querySelector("#location-template").innerHTML;
+const { SOCKET_EVENTS } = require("../../src/constants/socketConstants");
 
-socket.on("message", (message) => {
+socket.on(SOCKET_EVENTS.MESSAGE, (message) => {
   const html = Mustache.render(messageTemplate, {
     message: message.text,
     username: message.username,
@@ -13,7 +14,7 @@ socket.on("message", (message) => {
   messages.insertAdjacentHTML("beforeend", html);
 });
 
-socket.on("locationMessage", (message) => {
+socket.on(SOCKET_EVENTS.LOCATION_MESSAGE, (message) => {
   const html = Mustache.render(locationTemplate, {
     url: message.url,
     username: message.username,
@@ -33,7 +34,7 @@ if (!username || !room) {
 
 document.querySelector("#send").addEventListener("click", () => {
   socket.emit(
-    "sendMessage",
+    SOCKET_EVENTS.SEND_MESSAGE,
     document.querySelector("#message").value,
     (error, response) => {
       if (error) {
@@ -52,7 +53,7 @@ document.querySelector("#send-location").addEventListener("click", () => {
 
   navigator.geolocation.getCurrentPosition((position) => {
     socket.emit(
-      "sendLocation",
+      SOCKET_EVENTS.SEND_LOCATION,
       {
         latitude: position.coords.latitude,
         longitude: position.coords.longitude,
@@ -71,7 +72,7 @@ document.querySelector("#send-location").addEventListener("click", () => {
   }, 5000);
 });
 
-socket.emit("join", { username, room }, (error) => {
+socket.emit(SOCKET_EVENTS.JOIN, { username, room }, (error) => {
   if (error) {
     alert(error);
     location.href = "/";
